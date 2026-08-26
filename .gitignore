@@ -1,0 +1,9 @@
+# dev artifacts
+test_*.js
+shot-*.png
+*.zip
+_test_*.dxf
+
+# secrets / temp
+.ghtoken
+.ghheader

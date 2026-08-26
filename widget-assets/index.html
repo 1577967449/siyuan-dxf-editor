@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>DXF 浏览器编辑器（仿 AutoCAD）</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; background: #1b1b1b; color: #d6d6d6; overflow: hidden; }
+  #app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  #toolbar { display: flex; flex-wrap: wrap; overflow-x: hidden; flex-shrink: 0; gap: 4px; padding: 5px 8px; background: #2a2d2e; border-bottom: 1px solid #000; align-items: center; }
+  #toolbar button { flex: 0 1 auto; white-space: nowrap; min-width: 44px; background: #3a3d3e; color: #e0e0e0; border: 1px solid #555; border-radius: 3px; padding: 5px 9px; cursor: pointer; font-size: 12px; }
+  #toolbar label { white-space: nowrap; }
+  #toolbar button:hover { background: #4a4d4e; }
+  #toolbar button.active { background: #2b7de9; border-color: #2b7de9; color: #fff; }
+  #toolbar .sep { width: 1px; height: 22px; background: #555; margin: 0 4px; }
+  #toolbar label { font-size: 12px; color: #aaa; }
+  #main { flex: 1; display: flex; min-height: 0; }
+  #side { width: 264px; background: #232627; border-right: 1px solid #000; display: flex; flex-direction: column; overflow-y: auto; }
+  #side h3 { margin: 0; padding: 6px 10px; font-size: 12px; background: #2a2d2e; border-bottom: 1px solid #000; color: #9fd3ff; letter-spacing: .5px; position: sticky; top: 0; z-index: 2; }
+  #side .panel { padding: 4px 6px; }
+  .row { display: flex; align-items: center; gap: 5px; padding: 2px 4px; border-radius: 3px; font-size: 12px; cursor: default; }
+  .row:hover { background: #2f3233; }
+  .swatch { width: 13px; height: 13px; border: 1px solid #000; border-radius: 2px; flex: 0 0 auto; }
+  .row .nm { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .tog { width: 18px; text-align: center; cursor: pointer; user-select: none; font-size: 12px; opacity: .8; }
+  .tog.off { color: #777; opacity: .4; }
+  .tog.on { color: #ffd24a; }
+  .grp { padding: 2px 6px; font-size: 11px; color: #7fcf7f; cursor: pointer; }
+  .grp:hover { background: #2f3233; }
+  .txtrow { font-size: 11px; }
+  #stage { flex: 1; position: relative; background: #000; min-width: 0; overflow: hidden; z-index: 0; }
+  #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; z-index: 1; }
+  #overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+  #bottom { position: relative; flex-shrink: 0; background: #2a2d2e; border-top: 1px solid #000; display: flex; flex-direction: column; z-index: 10; }
+  #layoutTabs { display: flex; gap: 2px; padding: 3px 6px; background: #202223; border-bottom: 1px solid #000; overflow-x: auto; }
+  .tab { padding: 4px 14px; font-size: 12px; background: #34373a; color: #cfcfcf; border: 1px solid #000; border-bottom: none; border-radius: 4px 4px 0 0; cursor: pointer; white-space: nowrap; }
+  .tab.active { background: #000; color: #fff; border-color: #2b7de9; }
+  #cmdbar { display: flex; align-items: center; gap: 12px; padding: 4px 10px; font-size: 12px; }
+  #cmdbar .seg { color: #9aa0a6; }
+  #cmdbar b { color: #fff; }
+  #status { color: #b6e3a0; }
+  #hint { color: #e0b34a; }
+  .hidden { display: none !important; }
+  #selActions button, #side button { background: #3a3d3e; color: #e0e0e0; border: 1px solid #555; border-radius: 3px; padding: 3px 7px; cursor: pointer; font-size: 12px; }
+  #selActions button:hover { background: #4a4d4e; }
+  #selPanel { padding: 6px; font-size: 12px; }
+  #selPanel select { background: #1b1b1b; color: #ddd; border: 1px solid #555; }
+  #areaInfo { color: #9fd3ff; margin-top: 4px; }
+  /* ---- 文字框选结果浮窗（与广联达快速看图一致）---- */
+  #txtPick { position: fixed; z-index: 60; background: #232627; border: 1px solid #2b7de9; border-radius: 6px; width: 340px; max-height: 62vh; overflow: auto; box-shadow: 0 8px 28px rgba(0,0,0,.55); font-size: 12px; }
+  #txtPick .hd { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #2a2d2e; border-bottom: 1px solid #000; position: sticky; top: 0; }
+  #txtPick .hd b { color: #9fd3ff; }
+  #txtPick .hd .sp { flex: 1; }
+  #txtPick .hd button { background: #3a3d3e; color: #e0e0e0; border: 1px solid #555; border-radius: 3px; padding: 3px 7px; cursor: pointer; font-size: 12px; }
+  #txtPick .hd button:hover { background: #4a4d4e; }
+  #txtPick #tpArea { width: 100%; min-height: 120px; max-height: 46vh; resize: vertical; background: #1b1b1b; color: #e8e8e8; border: none; outline: none; padding: 8px; font: 13px/1.6 "Segoe UI", "Microsoft YaHei", Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
+  input[type=file] { color: #ccc; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <label>打开 <input type="file" id="fileInput" accept=".dxf,.DXF" style="display:inline;"></label>
+    <span class="sep"></span>
+    <button id="btnFit">适配(ZOOM ALL)</button>
+    <button id="btnSnap">捕捉:F3</button>
+    <button id="btnOrtho">正交:F8</button>
+    <span class="sep"></span>
+    <button data-mode="select" class="active">选择</button>
+    <button data-mode="draw-line">直线</button>
+    <button data-mode="draw-circle">圆</button>
+    <button data-mode="draw-text">文字</button>
+    <button data-mode="m-dist">距离</button>
+    <button data-mode="m-area">周长面积</button>
+    <button data-mode="sel-text">框选文字</button>
+    <span class="sep"></span>
+    <button data-panel="layers">图层</button>
+    <button data-panel="groups">分组</button>
+    <button data-panel="texts">文字栏</button>
+    <button data-panel="props">属性</button>
+    <span class="sep"></span>
+    <button id="btnClearOverlay">清除标注</button>
+    <button id="btnSave">保存(Save)</button>
+  </div>
+  <div id="main">
+    <div id="side" class="hidden">
+      <div id="layers" class="panel"></div>
+      <div id="groups" class="panel"></div>
+      <div id="texts" class="panel"></div>
+      <div id="selPanel">
+        <div id="selEmpty">未选中实体。</div>
+        <div id="selActions" class="hidden">
+          <div>图层：<select id="selLayer"></select></div>
+          <div id="areaInfo"></div>
+          <div style="margin-top:5px;display:flex;gap:6px;">
+            <button id="btnDel">删除</button>
+            <button id="btnMove">移动</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="stage">
+      <canvas id="cv"></canvas>
+      <canvas id="overlay"></canvas>
+    </div>
+  </div>
+  <div id="bottom">
+    <div id="layoutTabs"></div>
+    <div id="cmdbar">
+      <span class="seg">当前层 <b id="curLayer">0</b></span>
+      <span class="seg">光标 <b id="xy">0.00, 0.00</b></span>
+      <span id="status">就绪。</span>
+      <span id="hint"></span>
+    </div>
+  </div>
+</div>
+<div id="txtPick" class="hidden"></div>
+<script src="shx-parser.umd.js?v=20260817"></script>
+<script src="shx-calib.js?v=20260817"></script>
+<script src="acad-fmp.js?v=20260817"></script>
+<script src="dxf-binary.js?v=20260820"></script>
+<script src="dxf-parser.js?v=20260820"></script>
+<script src="shx-fonts.js?v=20260817"></script>
+<script src="dxf-render.js?v=20260827h"></script>
+<script src="dxf-writer.js?v=20260817"></script>
+<script src="app.js?v=20260827h"></script>
+</body>
+</html>
