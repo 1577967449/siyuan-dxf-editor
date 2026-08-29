@@ -33,7 +33,7 @@ const DOCK_TYPE = "dock";
 const HOTKEY = "⇧⌘D";
 const DOCK_POSITION = "RightBottom";
 const CAD_EXT = /\.(dxf|dwg)(\?|#|$)/i;
-const DEPLOY_VERSION = "1.0.26";                   // 与 plugin.json 保持一致；每次发布都要同步 plugins/.../widget-assets/ 并提升此版本
+const DEPLOY_VERSION = "1.0.27";                   // 与 plugin.json 保持一致；每次发布都要同步 plugins/.../widget-assets/ 并提升此版本
 
 class DxfEditorPlugin extends Plugin {
   constructor(options, api) {

@@ -1,30 +1,30 @@
 {
-    "name": "siyuan-dxf-editor",
-    "author": "WorkBuddy",
-    "url": "https://github.com/1577967449/siyuan-dxf-editor",
-    "version": "1.0.26",
-    "minAppVersion": "3.1.6",
-    "displayName": {
-        "default": "DXF 编辑器 / 预览（思源集成）",
-        "zh_CN": "DXF 编辑器 / 预览（思源集成）",
-        "en_US": "DXF Editor / Viewer (SiYuan integrated)"
-    },
-    "description": {
-        "default": "在右侧栏打开 DXF 预览面板；点击文档中的 .dxf 附件即自动预览（拦截思源自带文本预览）。基于纯前端零依赖 Canvas2D 引擎，完全离线。",
-        "zh_CN": "在右侧栏打开 DXF 预览面板；点击文档中的 .dxf 附件即自动预览（拦截思源自带把 DXF 当文本预览的行为）。基于纯前端零依赖 Canvas2D 引擎，完全离线，ASCII/二进制 DXF 均支持。",
-        "en_US": "Opens a DXF preview dock; clicking a .dxf attachment auto-previews (replaces SiYuan's built-in text preview of DXF). Pure-frontend, zero-dependency Canvas2D engine, fully offline."
-    },
-    "readme": {
-        "default": "README.md"
-    },
-    "backends": [
-        "windows",
-        "linux",
-        "darwin"
-    ],
-    "frontends": [
-        "desktop",
-        "desktop-window"
-    ],
-    "funding": {}
+  "name": "siyuan-dxf-editor",
+  "author": "WorkBuddy",
+  "url": "https://github.com/1577967449/siyuan-dxf-editor",
+  "version": "1.0.27",
+  "minAppVersion": "3.1.6",
+  "displayName": {
+    "default": "DXF 编辑器 / 预览（思源集成）",
+    "zh_CN": "DXF 编辑器 / 预览（思源集成）",
+    "en_US": "DXF Editor / Viewer (SiYuan integrated)"
+  },
+  "description": {
+    "default": "在右侧栏打开 DXF 预览面板；点击文档中的 .dxf 附件即自动预览（拦截思源自带文本预览）。基于纯前端零依赖 Canvas2D 引擎，完全离线。",
+    "zh_CN": "在右侧栏打开 DXF 预览面板；点击文档中的 .dxf 附件即自动预览（拦截思源自带把 DXF 当文本预览的行为）。基于纯前端零依赖 Canvas2D 引擎，完全离线，ASCII/二进制 DXF 均支持。",
+    "en_US": "Opens a DXF preview dock; clicking a .dxf attachment auto-previews (replaces SiYuan's built-in text preview of DXF). Pure-frontend, zero-dependency Canvas2D engine, fully offline."
+  },
+  "readme": {
+    "default": "README.md"
+  },
+  "backends": [
+    "windows",
+    "linux",
+    "darwin"
+  ],
+  "frontends": [
+    "desktop",
+    "desktop-window"
+  ],
+  "funding": {}
 }
