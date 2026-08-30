@@ -3,12 +3,13 @@
 /**
  * SiYuan 插件：DXF 编辑器 / 预览（集成版，单一安装包）
  *
- * 设计（单一交付物）：
- *  - 本插件包内含完整 viewer（widget-assets/，即纯前端 Canvas2D 的 dxf-editor）。
- *  - 插件加载时把 widget-assets/ 部署到思源 widgets 目录
- *    （data/widgets/siyuan-dxf-editor/），从而复用思源已验证的 /widgets/<name>/ 静态路由。
- *  - dock 的 iframe 指向 /widgets/siyuan-dxf-editor/index.html?dock=1；
- *    嵌入当前笔记用 {{iframe /widgets/siyuan-dxf-editor/index.html?embed=1&asset=...}}。
+ * 设计（插件 + 已上架挂件协作）：
+ *  - 查看器本体是已上架集市的挂件 siyuan-dxf-editor-widget；
+ *    插件不再内嵌、也不再向 widgets 目录部署任何挂件文件（集市规范要求）。
+ *  - dock 的 iframe 指向 /widgets/siyuan-dxf-editor-widget/index.html?dock=1；
+ *    嵌入当前笔记用 /widgets/siyuan-dxf-editor-widget/index.html?embed=1&asset=...。
+ *  - 若检测到挂件未安装，dock 内显示引导，并用
+ *    siyuan://bazaar/widgets/siyuan-dxf-editor-widget/readme 打开集市详情页引导安装。
  *  - 点击 .dxf 附件：捕获阶段 preventDefault + 打开右侧 dock 预览，从而【拦截思源自带
  *    把 DXF 当纯文本预览】的默认行为。
  *  - 右键菜单：提供「用 DXF 预览打开」与「以 DXF 挂件嵌入当前笔记」。
@@ -26,14 +27,18 @@ const fs = window.require("fs");
 const path = window.require("path");
 
 const PLUGIN_NAME = "siyuan-dxf-editor";
-const WIDGET_NAME = "siyuan-dxf-editor";          // 部署后的 widgets 子目录名（与插件同名）
+const WIDGET_NAME = "siyuan-dxf-editor-widget";   // 已上架集市的挂件名（部署目录同名）
 const WIDGET_URL = "/widgets/" + WIDGET_NAME + "/index.html?dock=1";
 const EMBED_BASE = "/widgets/" + WIDGET_NAME + "/index.html?embed=1&asset=";
+const WIDGET_README_URL = "siyuan://bazaar/widgets/" + WIDGET_NAME + "/readme";
 const DOCK_TYPE = "dock";
 const HOTKEY = "⇧⌘D";
 const DOCK_POSITION = "RightBottom";
 const CAD_EXT = /\.(dxf|dwg)(\?|#|$)/i;
-const DEPLOY_VERSION = "1.0.27";                   // 与 plugin.json 保持一致；每次发布都要同步 plugins/.../widget-assets/ 并提升此版本
+const TOPBAR_ICON =
+  '<svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">' +
+  '<path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm0 2.5L17.5 8H14V4.5zM8 11h8v1.6H8V11zm0 4h8v1.6H8V15z"/>' +
+  '</svg>';
 
 class DxfEditorPlugin extends Plugin {
   constructor(options, api) {
@@ -63,63 +68,29 @@ class DxfEditorPlugin extends Plugin {
     return (this.app && this.app.layout) || (window.siyuan && window.siyuan.layout) || null;
   }
 
-  // ---- 把内置 viewer 部署到 widgets 目录（仅首次或版本变化时）----
-  _deployWidget() {
+  // ---- 检测配套挂件是否已安装（挂件来自集市，插件不自带也不部署）----
+  _widgetInstalled() {
+    const ws = this._workspaceDir();
+    if (!ws) return false;
     try {
-      const src = this._findWidgetAssetsDir();
-      if (!src) {
-        console.error("[dxf-editor] 找不到 widget-assets，无法部署 viewer");
-        this._debugLog("找不到 widget-assets");
-        return false;
-      }
-      const dest = this._findWidgetsDeployDir();
-      if (!dest) {
-        console.error("[dxf-editor] 无法确定 widgets 部署目录");
-        this._debugLog("无法确定 widgets 部署目录");
-        return false;
-      }
-      const widgetsDir = path.dirname(dest);
-      const marker = path.join(dest, ".deployed-version");
-      let needCopy = false;
-      if (!fs.existsSync(dest) || !fs.existsSync(marker)) needCopy = true;
-      else {
-        try { if (fs.readFileSync(marker, "utf8").trim() !== DEPLOY_VERSION) needCopy = true; }
-        catch (e) { needCopy = true; }
-      }
-      if (!needCopy) return true;
-      if (!fs.existsSync(widgetsDir)) fs.mkdirSync(widgetsDir, { recursive: true });
-      this._copyDir(src, dest);
-      fs.writeFileSync(marker, DEPLOY_VERSION, "utf8");
-      console.log("[dxf-editor] viewer 已部署到", dest);
-      this._debugLog("部署成功: " + dest);
-      return true;
+      return fs.existsSync(path.join(ws, "data", "widgets", WIDGET_NAME, "index.html"));
     } catch (e) {
-      console.error("[dxf-editor] 部署 viewer 失败：", e);
-      this._debugLog("部署失败: " + (e && e.message));
       return false;
     }
   }
 
-  _findWidgetAssetsDir() {
-    const candidates = [];
-    if (this.path) candidates.push(path.join(this.path, "widget-assets"));
-    if (this.pluginDir) candidates.push(path.join(this.pluginDir, "widget-assets"));
-    if (__dirname) candidates.push(path.join(__dirname, "widget-assets"));
-    const ws = this._workspaceDir();
-    if (ws) candidates.push(path.join(ws, "data", "plugins", PLUGIN_NAME, "widget-assets"));
-    for (const c of candidates) {
-      if (c && fs.existsSync(c)) return c;
-    }
-    console.error("[dxf-editor] widget-assets 候选均不存在：", candidates);
-    return null;
-  }
-
-  _findWidgetsDeployDir() {
-    const ws = this._workspaceDir();
-    if (ws) return path.join(ws, "data", "widgets", WIDGET_NAME);
-    if (this.path) return path.join(this.path, "..", "widgets", WIDGET_NAME);
-    if (__dirname) return path.join(__dirname, "..", "widgets", WIDGET_NAME);
-    return null;
+  // ---- 未安装挂件时的引导界面 ----
+  _renderWidgetGuide(el) {
+    el.style.cssText = "padding:24px;line-height:1.8;font-size:14px;";
+    const tip = document.createElement("div");
+    tip.textContent = "需要先安装配套挂件「DXF 编辑器 / 预览」才能预览图纸，安装后请重启思源。";
+    const btn = document.createElement("button");
+    btn.className = "b3-button b3-button--outline";
+    btn.textContent = "打开集市安装挂件";
+    btn.style.marginTop = "12px";
+    btn.onclick = () => { window.location.href = WIDGET_README_URL; };
+    el.appendChild(tip);
+    el.appendChild(btn);
   }
 
   _workspaceDir() {
@@ -151,20 +122,7 @@ class DxfEditorPlugin extends Plugin {
     } catch (e) {}
   }
 
-  _copyDir(src, dest) {
-    fs.mkdirSync(dest, { recursive: true });
-    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-      const s = path.join(src, entry.name);
-      const d = path.join(dest, entry.name);
-      if (entry.isDirectory()) this._copyDir(s, d);
-      else fs.copyFileSync(s, d);
-    }
-  }
-
   async onload() {
-    // 先部署 viewer，再建 dock
-    this._deployWidget();
-
     this._createDock();
 
     document.addEventListener("click", this._onClick, true);
@@ -174,7 +132,7 @@ class DxfEditorPlugin extends Plugin {
     this.eventBus.on("open-menu-doctree", this._onMenuDoctree);
 
     this.addTopBar({
-      icon: "iconImages",
+      icon: TOPBAR_ICON,
       title: "DXF 预览",
       callback: () => this._openDock()
     });
@@ -210,6 +168,10 @@ class DxfEditorPlugin extends Plugin {
         init: (dock) => {
           this._dockModel = dock;
           this._dockVisible = true;
+          if (!this._widgetInstalled()) {
+            this._renderWidgetGuide(dock.element);
+            return;
+          }
           const iframe = document.createElement("iframe");
           let src = WIDGET_URL;
           if (this._dockAssetForInit) src += "&asset=" + encodeURIComponent(this._dockAssetForInit);
@@ -382,6 +344,11 @@ class DxfEditorPlugin extends Plugin {
     const asset = this._resolveAssetUrl(href);
     if (!asset) {
       this._tip("无法解析 DXF 资源路径", "error");
+      return;
+    }
+    if (!this._widgetInstalled()) {
+      this._tip("请先安装配套挂件「DXF 编辑器 / 预览」", "error");
+      window.location.href = WIDGET_README_URL;
       return;
     }
 
