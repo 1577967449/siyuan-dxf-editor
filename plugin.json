@@ -2,7 +2,7 @@
   "name": "siyuan-dxf-editor",
   "author": "WorkBuddy",
   "url": "https://github.com/1577967449/siyuan-dxf-editor",
-  "version": "1.0.27",
+  "version": "1.0.28",
   "minAppVersion": "3.1.6",
   "displayName": {
     "default": "DXF 编辑器 / 预览（思源集成）",
